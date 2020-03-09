@@ -6,10 +6,13 @@ class AdvancedQueryString
     @use_literal = use_literal
   end
 
-  def to_solr_s
+  def to_solr_s(already_negated = false)
     return empty_solr_s if empty_search?
-
-    "#{prefix}#{field}:#{value}"
+    if already_negated
+      "#{field}:#{value}"
+    else
+      "#{prefix}#{field}:#{value}"
+    end
   end
 
   private

@@ -24,7 +24,7 @@
     <%= render partial: 'shared/record_innards' %>
   </div>
   <div id="sidebar" class="col-sm-3 sidebar sidebar-container resizable-sidebar" <% unless @has_children %>style="display: none"<% end %>>
-    <% if defined?(@filters) && defined?(@search) %>
+    <% if (defined?(@filters) || defined?(@exclusions)) && defined?(@search) %>
     <%= render partial: 'shared/facets' %>
    <% end %>
 

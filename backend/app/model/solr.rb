@@ -39,24 +39,29 @@ class Solr
     end
 
 
-    def self.construct_advanced_query_string(advanced_query, use_literal = false)
+    def self.construct_advanced_query_string(advanced_query, use_literal = false, already_negated = false)
       if advanced_query.has_key?('subqueries')
-        clauses = advanced_query['subqueries'].map {|subq|
-          construct_advanced_query_string(subq, use_literal)
-        }
 
-# This causes incorrect results for X NOT Y queries via the PUI, see https://github.com/archivesspace/archivesspace/issues/1699
-#        # Solr doesn't allow purely negative expression groups, so we add a
-#        # match all query to compensate when we hit one of these.
-#        if advanced_query['subqueries'].all? {|subquery| subquery['negated']}
-#          clauses << '*:*'
-#        end
+Log.debug("---------------------- NUM SUBQUERIES: #{advanced_query['subqueries'].count} ----------------------")
 
-        subqueries = clauses.join(" #{advanced_query['op']} ")
+        if advanced_query['subqueries'].all? {|subquery| subquery['negated']}
+          clauses = advanced_query['subqueries'].map {|subq|
+            construct_advanced_query_string(subq, use_literal, true)
+          }
+          subqueries = clauses.join(" #{advanced_query['op']} ")
+          foo = "-(#{subqueries})"
+        else
+          clauses = advanced_query['subqueries'].map {|subq|
+            construct_advanced_query_string(subq, use_literal, false)
+          }
+          subqueries = clauses.join(" #{advanced_query['op']} ")
+          foo = "(#{subqueries})"
+        end
+Log.debug("_______________________ QUERY STRING: #{foo} ______________________")
+        foo
 
-        "(#{subqueries})"
       else
-        AdvancedQueryString.new(advanced_query, use_literal).to_solr_s
+        AdvancedQueryString.new(advanced_query, use_literal).to_solr_s(already_negated)
       end
     end
 
@@ -271,6 +276,9 @@ class Solr
       Solr.search_hooks.each do |hook|
         hook.call(self)
       end
+
+      Log.debug("^^^^^^^^^^^^^^^^^^^^^^^ #{@query_string} ^^^^^^^^^^^^^^^^^^^^^^^^")
+      Log.debug("``````````````````````` #{@solr_params} `````````````````````````")
 
       url = @solr_url
       # retain path if present i.e. "solr/aspace/select" when using an external Solr with path required

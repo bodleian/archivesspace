@@ -1,17 +1,19 @@
 # container for handling facet, filter information
-class FacetFilter < Struct.new( :default_types, :fields, :values, :facet_types, :facet_set_arr)
+class FacetFilter < Struct.new( :default_types, :fields, :values, :exclude_fields, :exclude_values, :facet_types, :facet_set_arr)
   include ManipulateNode
   include HandleFaceting
 
-  def initialize(default_types, fields = [], values=[])
+  def initialize(default_types, fields = [], values=[], exclude_fields = [], exclude_values = [])
     self.default_types = default_types || []
     self.fields = Array.new(fields || [])
     self.values = Array.new(values || [])
+    self.exclude_fields = Array.new(exclude_fields || [])
+    self.exclude_values = Array.new(exclude_values || [])
     self.facet_types = default_types
-    Rails.logger.debug("Default: #{default_types} fields: #{fields} facet_types: #{self.facet_types}")
+    Rails.logger.debug("Default: #{default_types} fields: #{fields} exclude_fields: #{exclude_fields} facet_types: #{self.facet_types}")
     self.facet_set_arr = []
   end
-
+  
   # an array of strings for asking for filtering
   def get_facet_types
     self.facet_types
@@ -21,12 +23,14 @@ class FacetFilter < Struct.new( :default_types, :fields, :values, :facet_types, 
   def get_filter_query
     builder = AdvancedQueryBuilder.new
     self.fields.zip(self.values){|field, value| builder.and(field, value) }
+    self.exclude_fields.zip(self.exclude_values){|field, value| builder.and(field, value, "text", false, true) }
     builder
   end 
 
   def get_filter_url_params
     param = ""
     self.fields.zip(values){|field, value| param += "&filter_fields[]=#{field}&filter_values[]=#{CGI.escape(value)}" }
+    self.exclude_fields.zip(exclude_values){|field, value| param += "&exclude_fields[]=#{field}&exclude_values[]=#{CGI.escape(value)}" }
     param
   end
 
@@ -44,4 +48,18 @@ class FacetFilter < Struct.new( :default_types, :fields, :values, :facet_types, 
     end
     fh
   end
+
+  # Same method but for exclusions
+  def get_exclusion_hash(url = nil)
+    fh = {}
+    self.exclude_fields.zip(self.exclude_values) do |k, v|
+      pt = I18n.t("search_results.filter.#{k}")
+      pv = get_pretty_facet_value(k, v.sub(/"(.*)"/,'\1'))
+      uri = (url)? url.sub("&exclude_fields[]=#{k}&exclude_values[]=#{CGI.escape(v)}","") : ''
+      fh[k] ||= []
+      fh[k].push({'v' => v, 'pv' => pv, 'pt' => pt, 'uri' => uri })
+    end
+    fh
+  end
+
 end

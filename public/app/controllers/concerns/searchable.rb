@@ -55,13 +55,16 @@ module Searchable
     @base_search += "&limit=#{limit}" if !limit.blank?
 #    Rails.logger.debug("SEARCHABLE BASE: #{@base_search}")
     @criteria = default_search_opts
-    @facet_filter = FacetFilter.new(default_facets, params.fetch(:filter_fields,[]), params.fetch(:filter_values,[]))
+    @facet_filter = FacetFilter.new(default_facets, params.fetch(:filter_fields,[]), params.fetch(:filter_values,[]), params.fetch(:exclude_fields,[]), params.fetch(:exclude_values,[]))
     # building the query for the facetting
     type_query_builder = AdvancedQueryBuilder.new
-    default_types.reduce(type_query_builder) {|b, type|
-      b.or('types', type)
+    default_types.each {|type|
+      type_query_builder.or('types', type)
     }
     @criteria['filter'] = @facet_filter.get_filter_query.and(type_query_builder).build.to_json
+
+    Rails.logger.debug("******************** #{@criteria['filter']} ********************")
+
     @criteria['facet[]'] = @facet_filter.get_facet_types
     @criteria['page_size'] = params.fetch(:page_size, AppConfig[:pui_search_results_page_size])
   end
@@ -158,16 +161,19 @@ module Searchable
     advanced_query_builder.and('publish', true)
     @base_search += "&limit=#{@search[:limit]}" unless @search[:limit].blank?
 
-    @facet_filter = FacetFilter.new(default_facets, @search[:filter_fields],  @search[:filter_values])
+    @facet_filter = FacetFilter.new(default_facets, @search[:filter_fields],  @search[:filter_values], @search[:exclude_fields],  @search[:exclude_values])
 
-    # building the query for the facetting
+    # building the query for the default facetting
     type_query_builder = AdvancedQueryBuilder.new
-    default_types.reduce(type_query_builder) {|b, type|
-      b.or('types', type)
+    default_types.each {|type|
+      type_query_builder.or('types', type)
     }
 
     @criteria['aq'] = advanced_query_builder.build.to_json
     @criteria['filter'] = @facet_filter.get_filter_query.and(type_query_builder).build.to_json
+    
+    Rails.logger.debug("~~~~~~~~~~~~~~~~~~~~~ #{@criteria['filter']} ~~~~~~~~~~~~~~~~~~~~~")
+
     @criteria['facet[]'] = @facet_filter.get_facet_types
     @criteria['page_size'] = params.fetch(:page_size, AppConfig[:pui_search_results_page_size])
   end
@@ -210,6 +216,7 @@ module Searchable
     @page_search += "&sort=#{@sort}" if defined?(@sort) && @sort
 
     @filters = @facet_filter.get_filter_hash(@page_search)
+    @exclusions = @facet_filter.get_exclusion_hash(@page_search)
 
     @pager = Pager.new(@page_search,@results['this_page'],@results['last_page'])
     @page_title = I18n.t('search_results.page_title', :count => @results['total_hits'])

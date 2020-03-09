@@ -59,7 +59,7 @@
 
   <% end %>
 
-  <% if !@facets.blank? || !@filters.blank? %>
+  <% if !@facets.blank? || !@filters.blank? || !@negativefilters.blank %>
   <%= render partial: 'shared/facets' %>
   <% end %>
   </div>

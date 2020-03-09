@@ -1,4 +1,4 @@
-class Search < Struct.new(:q, :op, :field, :limit, :from_year, :to_year, :filter_fields, :filter_values, :filter_q, :filter_from_year, :filter_to_year,:recordtypes, :dates_searched, :sort, :dates_within, :text_within, :search_statement)
+class Search < Struct.new(:q, :op, :field, :limit, :from_year, :to_year, :filter_fields, :filter_values, :exclude_fields, :exclude_values, :filter_q, :filter_from_year, :filter_to_year,:recordtypes, :dates_searched, :sort, :dates_within, :text_within, :search_statement)
 
   @@BooleanOpts = []
 
@@ -31,7 +31,7 @@ class Search < Struct.new(:q, :op, :field, :limit, :from_year, :to_year, :filter
   # We take params either as a Hash or ActionController::Parameters object
   def initialize(params = {})
 #    Rails.logger.debug("Initializing: #{params}")
-    %w(q op field from_year to_year filter_fields filter_values filter_q recordtypes ).each do |f|
+    %w(q op field from_year to_year filter_fields filter_values exclude_fields exclude_values filter_q recordtypes ).each do |f|
       if params.kind_of?(Hash)
          self[f.to_sym] = params[f.to_sym] || []
       else
